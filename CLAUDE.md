@@ -13,6 +13,17 @@ Hướng dẫn cho Claude Code khi làm việc trong workspace này. Lịch sử
 
 Dữ liệu chính hiện tại: rosbag robot thật `robot_data_bag/` (mcap, ~996 s, ghi 2026-03-10). Trước đó dùng mô phỏng TurtleBot4 / Ignition Gazebo.
 
+## ⚠️ Giới hạn của dữ liệu (đọc trước khi đánh giá kết quả)
+
+Theo tác giả (2026-10-21):
+
+- **Mất depth.** Lúc thu, robot có camera depth (RealSense D435i). Do dữ liệu quá lớn, phần depth đã bị **bỏ khỏi video và rosbag**; chỉ còn ảnh RGB nén `/camera/image_raw/compressed`. Vì vậy tọa độ landmark không đo được trực tiếp mà phải **tự ước lượng monocular** từ chiều cao thật đã biết (`REAL_HEIGHTS`), nên sai số rất lớn (2–21 m, vật bị che hoặc khung nhận dạng bị cắt thì sai mạnh).
+- **Odom đã qua hiệu chuẩn.** Odom bánh xe gốc trôi rất nặng; tác giả đã hiệu chuẩn lại, nên `/odom` trong bag **trông rất mượt, có nhiều đoạn thẳng**. Đó là sản phẩm của hiệu chuẩn, không phải độ chính xác thật; sai số góc ở khúc quay vẫn lớn.
+- **Kết luận của tác giả về lần chạy 2026-10-21:** map/quỹ đạo đã bị **nắn theo landmark sai**, nên **không khép vòng được về vị trí ban đầu**.
+- Còn dùng được: lidar 2D `/scan` (360°, 720 tia, 0.15–12 m) và scan WiFi **thật** `/wifi_status` (JSON SSID/BSSID/RSSI, khoảng 3 s/lần).
+
+Hệ quả khi làm việc: không coi `/odom` hay landmark monocular là đáng tin; ưu tiên lidar để có hình học chính xác; đánh giá bằng độ khớp với map lidar và độ khép vòng về điểm xuất phát.
+
 ## Cấu trúc
 
 ```
@@ -24,11 +35,15 @@ clw_fg_ws/
 │       ├── include/clw_fg_slam/clw_fg_node.h
 │       ├── scripts/visual_node.py   # YOLO frontend
 │       ├── scripts/wifi_node.py     # WiFi fingerprint frontend
+│       ├── scripts/map_snapshot_node.py  # lưu ảnh map + quỹ đạo + landmark mỗi 10s
 │       ├── launch/system.launch.py  # launch CHÍNH (các file "copy/old/zin" là bản lưu tay)
+│       ├── config/              # slam_toolbox_params.yaml, clw_fg.rviz
 │       └── models/              # yolo_c7.pt (đang dùng), yolo11n-seg.pt, *.onnx (cũ)
 ├── robot_data_bag/              # rosbag2 mcap ~830 MB
 ├── tf.py                        # /odom → TF odom→base_link (bag không có /tf)
 ├── landmark_debug_images/       # ảnh landmark do visual_node xuất (tạo theo CWD)
+├── backend_logs/                # log backend: backend_<thời gian>.log (mỗi lần chạy) + latest.log (ghi đè) (tạo theo CWD)
+├── map_snapshots/               # ảnh tiến trình map: run_<thời gian>/map_NNNN.png + stats.csv, latest.png (tạo theo CWD)
 ├── 1jpeg                        # ảnh chụp RViz kết quả gần nhất (thực chất là JPEG)
 ├── readme.md                    # hướng dẫn cài đặt/build
 ├── readddmeee.txt               # sổ lệnh chạy (Gazebo + quy trình chạy bag)
@@ -56,7 +71,15 @@ ros2 launch clw_fg_slam system.launch.py                             # chạy t�
 
 (`readddmeee.txt` còn một static TF `odom → base_link` — trùng với `tf.py`, không chạy cả hai.)
 
-**Phải launch từ gốc workspace**: `visual_node.py` load model bằng đường dẫn tương đối `src/clw_fg_slam/models/yolo_c7.pt` và ghi ảnh vào `./landmark_debug_images`.
+**Phải launch từ gốc workspace**: `visual_node.py` load model bằng đường dẫn tương đối `src/clw_fg_slam/models/yolo_c7.pt` và ghi ảnh vào `./landmark_debug_images`; `map_snapshot_node.py` ghi vào `./map_snapshots`.
+
+`map_snapshot_node.py` (params `output_dir`, `interval_sec`=10, `max_image_size`=2000, `margin_m`): timer theo đồng hồ thật (STEADY), vẽ `/map` + `/clw_fg/path` (xanh) + `/odom` thô (đỏ) + landmark theo class; `stats.csv` có keyframes, landmarks, độ dài quỹ đạo, độ lệch điểm cuối odom-vs-optimized. Lưu thêm 1 ảnh khi Ctrl-C.
+
+Test headless (không RViz/YOLO) đã dùng: bag `-r 3` + tf.py + static TF + `sync_slam_toolbox_node --params-file install/.../slam_toolbox_params.yaml` + `clw_fg_node` + `map_snapshot_node.py`. Khi dọn tiến trình đừng dùng `pkill -f` với chuỗi có trong chính lệnh shell (sẽ tự kill shell).
+
+Log backend: dùng `logMsg(LogLevel::INFO|WARN|ERROR|DEBUG, fmt, ...)` (kiểu printf) thay cho `RCLCPP_*` — vừa in console vừa ghi `backend_logs/` (param `backend_log_dir`). `writeStatusLog()` cũng ghi vào đó với tag `[STATUS]`. Mỗi dòng: `[giờ thật] [sim t] [LEVEL] nội dung`, flush ngay. Code backend mới phải dùng `logMsg`, không gọi `RCLCPP_*` trực tiếp.
+
+rclpy (Humble): đọc param bằng `.value`, KHÔNG có `.as_double()` (đó là API C++).
 
 Không có test tự động. Kiểm chứng = chạy bag + xem RViz / `clw_slam_status.log` / quỹ đạo.
 
@@ -93,11 +116,11 @@ TF: `map → odom` (backend) · `odom → base_link` (tf.py) · `base_link → l
 
 ## Đường dẫn hard-code (kiểm tra trước khi chạy)
 
-Workspace đã chuyển từ `/home/synv/clw_fg_ws` sang `/media/synv/Data/clw_fg_ws`. Các đường dẫn sau đang hard-code và **hiện không tồn tại** trên máy này:
+Workspace đã chuyển từ `/home/synv/clw_fg_ws` sang `/media/synv/Data/clw_fg_ws`. Còn hard-code (file được tự tạo khi chạy):
 - `/home/synv/clw_slam_status.log` — log chung của cả 3 node (`writeStatusLog` / `write_status_log`).
 - `/home/synv/clw_trajectory.txt` — quỹ đạo TUM (launch param).
-- `/home/synv/ros2_converter/my_params.yaml` — params slam_toolbox (launch).
-- `/home/synv/tb4_ducsam.rviz` — cấu hình RViz (launch).
+
+Params slam_toolbox và RViz nay nằm trong package: `src/clw_fg_slam/config/slam_toolbox_params.yaml`, `src/clw_fg_slam/config/clw_fg.rviz` (cài qua `install(DIRECTORY config)`, launch lấy bằng `get_package_share_directory`). Sửa config → phải `colcon build` lại.
 
 ## Vấn đề đã biết (đọc trước khi debug)
 
