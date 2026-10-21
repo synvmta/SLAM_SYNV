@@ -189,3 +189,23 @@ colcon build --packages-select clw_fg_slam
 sudo ldconfig
 source install/setup.bash
 ros2 launch clw_fg_slam system.launch.py
+
+
+
+ros2 bag play robot_data_bag --clock -l
+
+
+python3 tf.py
+
+
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link laser_frame --ros-args -p use_sim_time:=true
+
+
+
+source install/setup.bash && ros2 launch clw_fg_slam system.launch.py
+
+
+git status
+git add .
+git commit -m "1"
+git push -u origin main
