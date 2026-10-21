@@ -24,6 +24,15 @@ Theo tác giả (2026-10-21):
 
 Hệ quả khi làm việc: không coi `/odom` hay landmark monocular là đáng tin; ưu tiên lidar để có hình học chính xác; đánh giá bằng độ khớp với map lidar và độ khép vòng về điểm xuất phát.
 
+### Đặc điểm dữ liệu đã kiểm chứng bằng phân tích (2026-10-21, script trong scratchpad, chi tiết ở MEMORY.md)
+
+1. **Timestamp bị làm tròn tới giây nguyên** ở MỌI topic, cả header lẫn thời gian ghi bag (`nanosec = 0`; khoảng 47 odom, 8 scan, 30 ảnh dùng chung 1 mốc mỗi giây). Khi `ros2 bag play`, dữ liệu phát theo **từng đợt 1 Hz**: visual node bỏ gần hết ảnh, TF có nhiều giá trị cùng một mốc thời gian, không thể đồng bộ ảnh/scan/odom theo thời gian. Muốn xử lý offline phải dựng lại thời gian (chia đều các tin trong mỗi giây theo thứ tự).
+2. **Hướng frame bị ngược 180°:** robot luôn di chuyển **ngược** hướng yaw của `/odom` (100% mẫu lệch ±180°). Trục x của `base_link` chỉ về **phía sau** hướng đi. Lidar tia 0° trùng trục x của `base_link` (ICP khớp odom, không lắp ngược chiều quét, nên TF `base_link→laser_frame` không xoay là đúng). **Camera nhìn theo hướng đi thật** (optical flow nở ra 82%), tức camera xoay **π** so với `base_link`. Code hiện tại coi camera nhìn theo +x của `base_link`, nên **mọi landmark bị đặt đối xứng ra sau robot**.
+3. **`REAL_HEIGHTS` sai với 2 class** (so với khoảng cách lidar ở cùng hướng, 12.101 detection): door tỉ lệ mono/lidar 0.88 (sai 0.66 m), extinguisher 0.86 (sai 0.98 m), **Fire Cabinet 0.38 (sai 3 m)**, **C7 Window 0.48 (sai 2.3 m)**. Chiều cao hiệu chỉnh gợi ý: cabinet ≈1.6 m, window ≈1.8 m, door ≈2.3 m, extinguisher ≈1.0 m. Lidar chỉ đo được khoảng cách cho 28% detection (giới hạn 12 m, nhiều tia `inf`).
+4. **Odom yaw gần như là hàm bậc thang:** 95.5% tin odom có Δyaw = 0; góc chỉ đổi từng nấc (sản phẩm hiệu chuẩn). Lidar (ICP) đo góc quay giữa các scan khớp odom với sai số ~1°/s, nên **lidar dùng được làm nguồn góc quay**.
+5. **WiFi thật khả dụng:** 320 scan, 123 BSSID, khoảng 28 AP/scan, nhưng giá trị chỉ đổi 28 lần (cập nhật thực khoảng 35 s/lần). Độ tương đồng cosine với điểm xuất phát giảm từ 1.0 về 0 rồi **tăng lại 1.0 ở cuối bag**, nên **robot quay về điểm xuất phát, quỹ đạo dạng đi rồi quay lại**. Độ khép vòng đầu–cuối là một chỉ số đánh giá dùng được.
+6. Hành lang dài: tia 0°/180° (trước/sau) hầu như `inf`; ICP **không quan sát được tịnh tiến dọc hành lang** (suy biến), chỉ tin được góc quay và tịnh tiến ngang.
+
 ## Cấu trúc
 
 ```

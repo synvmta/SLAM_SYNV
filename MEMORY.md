@@ -20,6 +20,24 @@ Nhật ký sống của dự án. Ghi **mới nhất ở cuối** mỗi mục. M
 - **Kết luận của tác giả:** map đã bị nắn theo landmark sai → không khép vòng được vị trí ban đầu.
 - Bổ sung từ phân tích log (Claude): landmark sai là nguyên nhân chính, nhưng không phải duy nhất. 39 loop WiFi cũng sai (lệch số thứ tự keyframe + fingerprint giả lập) và cùng kéo quỹ đạo lệch; landmark gần như không bao giờ được nhận lại khi quay về (1/125) nên không tạo được loop closure nào.
 
+## Nghiên cứu dữ liệu & phương án xử lý (2026-10-21)
+
+**Phát hiện** (chi tiết số liệu trong CLAUDE.md, mục "Đặc điểm dữ liệu đã kiểm chứng"):
+1. Timestamp làm tròn tới giây ở mọi topic → bag phát theo đợt 1 Hz, không đồng bộ được.
+2. Camera xoay π so với `base_link` (odom yaw và lidar 0° chỉ ngược hướng đi) → **landmark bị đặt đối xứng ra sau robot**. Đây là nguyên nhân lớn nhất khiến landmark sai, lớn hơn cả việc mất depth.
+3. `REAL_HEIGHTS` của Fire Cabinet (0.6 m) và C7 Window (0.85 m) sai khoảng 2–2.6 lần.
+4. Lidar ICP cho góc quay tốt (~1°/s); dọc hành lang thì suy biến.
+5. WiFi thật phân biệt vị trí tốt (cosine nền 0.30) và cho thấy robot quay về điểm xuất phát.
+
+→ Kết luận của tác giả "map bị nắn theo landmark sai" là **đúng**, nhưng landmark sai chủ yếu do **lỗi frame 180° + chiều cao vật sai + timestamp**, không chỉ do mất depth; WiFi giả lập cũng góp phần kéo lệch.
+
+**Phương án (theo thứ tự, mỗi bước đo lại bằng độ khép vòng đầu–cuối + độ khớp map lidar):**
+- **Bước 0: Sửa dữ liệu & frame (bắt buộc trước).** (a) Tạo bag mới dựng lại timestamp (chia đều trong mỗi giây, sửa cả header lẫn thời gian ghi bag). (b) Camera yaw = π so với `base_link` (cộng π vào bearing / static TF). (c) Sửa `REAL_HEIGHTS` theo lidar. (d) Không dùng `-l`; backend reset khi odom nhảy.
+- **Bước 1: Lidar làm xương sống.** Factor từ scan matching (ICP) giữa keyframe: lấy góc quay + tịnh tiến ngang từ ICP, tịnh tiến dọc từ odom (ma trận nhiễu riêng theo hướng suy biến). Có thể thay bằng lidar odometry có sẵn (rf2o).
+- **Bước 2: Landmark camera + lidar.** Bearing từ camera (đã sửa π), range từ lidar ở cùng hướng khi đo được (~28%), ngược lại dùng monocular với σ_range ∝ khoảng cách. Bỏ range khi bbox chạm mép ảnh. Gán landmark theo khoảng cách Mahalanobis (dùng hiệp phương sai từ iSAM2) + cùng class.
+- **Bước 3: WiFi thật.** Node đọc `/wifi_status`, fingerprint theo BSSID–RSSI, so cosine; ghép vào keyframe backend **theo timestamp** (không dùng ID riêng); xác minh ứng viên loop bằng ICP rồi mới thêm factor với tư thế tương đối từ ICP (không ép `Pose2(0,0,0)`), kernel robust.
+- **Bước 4: Đánh giá.** So sánh từng cấu hình: odom / +lidar / +landmark / +WiFi. Chỉ số: sai số khép vòng đầu–cuối, tỉ lệ keyframe nằm trong vùng trống của map, sai số tuyệt đối APE so với quỹ đạo slam_toolbox dùng làm tham chiếu (evo), sau khi sửa timestamp file TUM.
+
 ## Việc cần làm / hướng tiếp theo
 
 - [ ] Đồng bộ ID keyframe giữa wifi_node và backend (vd. backend publish keyframe ID + pose, wifi_node dùng ID đó; hoặc khớp theo timestamp).
@@ -103,3 +121,4 @@ Mẫu: `YYYY-MM-DD | dữ liệu | thay đổi/tham số | kết quả | ghi ch�
 | 2026-10-21 | robot_data_bag `-r 3`, 30 s | Backend: thêm `logMsg()` thay mọi `RCLCPP_*`, ghi file `backend_logs/backend_<time>.log` + `latest.log` (ghi đè); `writeStatusLog` cũng ghi vào với tag `[STATUS]`; banner in thêm WiFi sigma, keyframe thresholds, đường dẫn file; dòng `BACKEND SHUTDOWN` khi tắt. Sửa `rclpy.shutdown()` 2 lần khi Ctrl-C ở wifi_node/visual_node | File log đủ 100% log backend (165 dòng/133 keyframe), không warning khi build; wifi_node tắt sạch | Log rất dày dòng `ISAM2 Update Run #` (1 dòng/keyframe) — lọc bằng `grep -v STATUS` nếu chỉ cần sự kiện |
 | 2026-10-21 | robot_data_bag, lần chạy của người dùng 12:16:43 (full launch có YOLO+WiFi+RViz, ~147 s bag) | — | 14 landmark thật (ảnh ghi 28 do lỗi vẽ). Offset odom-vs-optimized tăng đều 0.9 → 21 m; quỹ đạo tối ưu **ngắn hơn** odom (34 vs 49 m) → landmark factor đang co/kéo lệch quỹ đạo (nghi range monocular sai / gán landmark vào keyframe mới nhất). Hướng hành lang trên map slam_toolbox lệch ~35° so với lần test headless | Lỗi vẽ snapshot: ns `landmarks` có cả TEXT marker (id+10000) → đã sửa chỉ lấy SPHERE. Chưa rõ vì sao map xoay khác — nghi chạy thêm static TF odom→base_link song song tf.py |
 | 2026-10-21 | robot_data_bag `-l`, full launch, chạy hết 996 s + 39 s vòng lặp (run 12:16:43, 70 ảnh) | Đánh giá tổng thể | **Kết quả CHƯA đạt**: quỹ đạo tối ưu (ảnh #66) nằm lệch ngoài hành lang slam_toolbox 5–10 m, offset odom-vs-opt 50–65 m. Odom thô trôi góc rất nặng ở khúc quay. 125 landmark nhưng **chỉ 1 landmark được nhận lại sau >60 s** (804 lần re-observe, 659 trong <15 s = cùng 1 lần đi ngang) → landmark không tạo loop closure, chỉ là ràng buộc cục bộ; nhiều landmark trùng (cụm dày) & nằm ngoài tường (range monocular sai). 39 WiFi loop đều sai: ID lệch (wifi x237→x137 thành backend x309↔x142), fingerprint giả lập từ odom, err 0.0% khi xa mọi AP (fingerprint toàn 0). Bag loop (`-l`) làm odom về 0 → backend tạo keyframe nhảy ~900 m, phá đồ thị (ảnh #67–70 vô giá trị) | Thứ tự sửa đề xuất: (1) không dùng `-l` / reset khi odom nhảy, (2) tắt hoặc sửa WiFi (đồng bộ ID + dùng `/wifi_status` thật), (3) thêm ràng buộc từ lidar (scan matching), (4) landmark: gắn theo timestamp, association theo vị trí tốt hơn, kiểm tra range |
+| 2026-10-21 | robot_data_bag (phân tích offline, không chạy ROS) | 5 thử nghiệm: (1) YOLO trên 2.957 ảnh, so khoảng cách monocular với lidar cho 12.101 detection; (2) kiểm tra timestamp; (3) ICP 250 cặp scan với 4 giả thuyết lắp lidar; (4) optical flow 1.717 cặp ảnh; (5) phân tích 320 scan WiFi thật | Timestamp làm tròn giây; camera xoay π so với base_link (odom/lidar chỉ ngược hướng đi); REAL_HEIGHTS cabinet/window sai 2–2.6×; lidar ICP góc ~1°/s; WiFi thật cho thấy robot quay về điểm xuất phát | Script: scratchpad `lidar_vs_mono.py`, `laser_icp.py`, `cam_dir.py`, `wifi_analyze.py` (chưa đưa vào repo) |
