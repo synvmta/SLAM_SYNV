@@ -1,0 +1,11 @@
+build/
+install/
+log/
+*.pyc
+__pycache__/
+*.so
+.vscode/
+clw_trajectory.txt
+clw_slam_status.log
+robot_data_bag/robot_data_bag_0.mcap
+robot_data_bag/

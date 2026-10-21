@@ -1,0 +1,191 @@
+
+# 1. Dọn dẹp tiến trình cũ
+pkill -9 ruby; pkill -9 ign; pkill -9 gz; pkill -9 ros2
+
+# 2. Source lại môi trường ROS (để chắc chắn)
+source /opt/ros/humble/setup.bash
+source /home/synv/turtlebot4_ws/install/setup.bash
+
+# 3. Export đường dẫn (CHÍNH XÁC thư mục chứa file .sdf)
+# LƯU Ý: Đảm bảo custom_maze_v1.sdf nằm trong thư mục này!
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/turtlebot4_ws/worlds
+
+# 4. Kiểm tra nhanh xem hệ thống có thấy file chưa (quan trọng)
+ls /home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf
+
+# 5. Nếu lệnh ls phía trên KHÔNG báo lỗi, hãy chạy lệnh launch:
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 \
+slam:=true rviz:=true
+
+
+
+
+
+# 1. Dọn dẹp tiến trình cũ
+pkill -9 ruby; pkill -9 ign; pkill -9 gz; pkill -9 ros2
+
+# 2. Source lại môi trường ROS (để chắc chắn)
+source /opt/ros/humble/setup.bash
+source /home/synv/turtlebot4_ws/install/setup.bash
+
+# 3. Export đường dẫn (CHÍNH XÁC thư mục chứa file .sdf)
+# LƯU Ý: Đảm bảo custom_maze_v1.sdf nằm trong thư mục này!
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/turtlebot4_ws/worlds
+
+# 4. Kiểm tra nhanh xem hệ thống có thấy file chưa (quan trọng)
+ls /home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf
+
+# 5. Nếu lệnh ls phía trên KHÔNG báo lỗi, hãy chạy lệnh launch:
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 \
+slam:=true rviz:=true
+
+
+
+ign gazebo /home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf
+
+# 1. Dọn dẹp tiến trình cũ
+pkill -9 ruby; pkill -9 ign; pkill -9 gz; pkill -9 ros2
+
+# 2. Source lại môi trường ROS (để chắc chắn)
+source /opt/ros/humble/setup.bash
+source /home/synv/turtlebot4_ws/install/setup.bash
+
+# 3. Export đường dẫn (CHÍNH XÁC thư mục chứa file .sdf)
+# LƯU Ý: Đảm bảo custom_maze_v1.sdf nằm trong thư mục này!
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/turtlebot4_ws/worlds
+
+# 4. Kiểm tra nhanh xem hệ thống có thấy file chưa (quan trọng)
+ls /home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf
+
+# 5. Nếu lệnh ls phía trên KHÔNG báo lỗi, hãy chạy lệnh launch:
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=/home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf \
+slam:=true rviz:=true
+
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:/đường/dẫn/đến/thư/mục/project/của/bạn
+========================================================================================
+
+4️⃣ Thứ tự chạy ĐÚNG 100% (thầy làm đúng y như này)
+# 1. Clean cache
+rm -rf ~/.ignition ~/.gz
+
+# 2. Export path
+export IGN_GAZEBO_RESOURCE_PATH=/home/synv/turtlebot4_ws/worlds:/opt/ros/humble/share
+export GZ_SIM_RESOURCE_PATH=/home/synv/turtlebot4_ws/worlds:/opt/ros/humble/share
+
+
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 \
+slam:=true 
+
+
+# 3. Test Gazebo standalone
+ign gazebo custom_maze_v1.sdf
+👉 Nếu lúc này robot HIỆN ĐẦY ĐỦ MESH → OK
+
+5️⃣ Sau đó mới chạy ROS launch
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 \
+slam:=true rviz:=true
+
+
+nautilus /home/synv/turtlebot4_ws/worlds/custom_maze_v1.sdf
+
+
+
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 slam:=true rviz:=true \
+x:=17.0 y:=17.0 
+
+export IGN_GAZEBO_RESOURCE_PATH=/home/synv/turtlebot4_ws/worlds:/opt/ros/humble/share
+export GZ_SIM_RESOURCE_PATH=/home/synv/turtlebot4_ws/worlds:/opt/ros/humble/share
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=custom_maze_v1 slam:=true \
+x:=17.0 y:=17.0 
+
+
+
+
+cd ~/clw_fg_ws
+colcon build --packages-select clw_fg_slam
+sudo ldconfig
+source install/setup.bash
+ros2 launch clw_fg_slam system.launch.py
+
+
+
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=warehouse slam:=true
+
+
+
+ign service -s /world/warehouse/set_pose \
+--reqtype ignition.msgs.Pose \
+--reptype ignition.msgs.Boolean \
+--timeout 300 \
+--req 'name: "turtlebot4", position: {x: 5.0, y: 5.0, z: 0.5}'
+
+
+
+
+// HOPITALLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+
+
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/hospital/models:/home/synv/hospital
+ign gazebo hospital.world
+
+
+
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/hospital/models
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:/home/synv/hospital/models
+
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=hospital \
+slam:=true \
+rviz:=true \
+x:=10.0 y:=5.0 z:=0.2
+
+sudo cp /home/synv/hospital/hospital.world /opt/ros/humble/share/turtlebot4_ignition_bringup/worlds/hospital.world
+
+
+export __NV_PRIME_RENDER_OFFLOAD=1
+export __GL_X_VENDOR_LIBRARY_NAME=nvidia
+
+
+export IGN_GAZEBO_RESOURCE_PATH=$IGN_GAZEBO_RESOURCE_PATH:/home/synv/hospital/models
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:/home/synv/hospital/models
+
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py \
+world:=hospital \
+slam:=true \
+x:=5.0 y:=5.0 z:=0.2
+
+cp /home/synv/hospital/hospital.world /opt/ros/humble/share/turtlebot4_ignition_bringup/worlds/hospital.world 
+
+
+
+
+
+
+terminal 1:
+ros2 bag play robot_data_bag --clock -l
+
+terminal 2:
+python3 tf.py
+
+terminal 3:
+export ROS_ARGS="--ros-args -p use_sim_time:=true"
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 odom base_link
+
+terminal 4:
+export ROS_ARGS="--ros-args -p use_sim_time:=true"
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link laser_frame
+
+terminal 5:
+cd ~/clw_fg_ws
+colcon build --packages-select clw_fg_slam
+sudo ldconfig
+source install/setup.bash
+ros2 launch clw_fg_slam system.launch.py

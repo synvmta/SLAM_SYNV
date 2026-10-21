@@ -1,0 +1,44 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 996000000000
+  starting_time:
+    nanoseconds_since_epoch: 1773113016000000000
+  message_count: 84991
+  topics_with_message_count:
+    - topic_metadata:
+        name: /wifi_status
+        type: std_msgs/msg/String
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 320
+    - topic_metadata:
+        name: /odom
+        type: nav_msgs/msg/Odometry
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 47400
+    - topic_metadata:
+        name: /camera/image_raw/compressed
+        type: sensor_msgs/msg/CompressedImage
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 29559
+    - topic_metadata:
+        name: /scan
+        type: sensor_msgs/msg/LaserScan
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 7712
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - robot_data_bag_0.mcap
+  files:
+    - path: robot_data_bag_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1773113016000000000
+      duration:
+        nanoseconds: 996000000000
+      message_count: 84991
