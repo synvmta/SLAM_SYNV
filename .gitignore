@@ -9,4 +9,6 @@ clw_trajectory.txt
 clw_slam_status.log
 robot_data_bag/robot_data_bag_0.mcap
 robot_data_bag/
+landmark_debug_images/
 map_snapshots/
+robot_data_bag_clean/
